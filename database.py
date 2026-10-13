@@ -2,10 +2,21 @@ import os
 import sqlite3
 from typing import Generator
 
-DB_FILE_PATH = os.environ.get("STUDENT_DB_PATH", "students.db")
+def get_default_db_path() -> str:
+    env_path = os.environ.get("STUDENT_DB_PATH")
+    if env_path:
+        return env_path
+    # On Vercel / AWS Lambda serverless functions, only /tmp is writable
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return "/tmp/students.db"
+    return "students.db"
 
 def get_connection(db_path: str = None) -> sqlite3.Connection:
-    target_path = db_path or os.environ.get("STUDENT_DB_PATH", "students.db")
+    target_path = db_path or get_default_db_path()
+    # Ensure directory exists if subdirectories or /tmp are targeted
+    db_dir = os.path.dirname(target_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(target_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
